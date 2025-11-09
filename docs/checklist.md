@@ -1,95 +1,57 @@
-# Code Review Checklist — Snapshot (CS-320 Contact Service)
+# Code Review Checklist (CS-320, ContactService.java)
 
-> This snapshot is organized to mirror the CS-499 code review categories and to make rubric alignment explicit. Items marked **Findings (before)** reflect the v-before-review state.
-
----
-
-## 1) Structure & Architecture
-- [ ] Clear separation of concerns among **Service**, **Repository**, and **Validator** layers
-- [ ] Narrow interfaces with single responsibility
-- [ ] No circular dependencies; one-way dependency flow (Service → Repository, Service → Validator)
-- [ ] Mutability minimized (identifiers and value objects are immutable)
-
-**Findings (before):**
-- Service class mixes orchestration, validation, and storage.
-- Error signaling mixes exceptions with boolean/nullable returns.
-- Identifiers are plain strings and mutable in call chains.
+> Scope: **file** — `Portfolio_Submission/ContactService.java`  
+> Baseline: `v-before-review` tag
 
 ---
 
-## 2) Correctness & Defensive Programming
-- [ ] Guard clauses for null/empty, length bounds, allowed character sets
-- [ ] Validation centralized and consistently applied across create/update paths
-- [ ] Invariants stated near code (e.g., “phone must be 10 digits”)
-- [ ] Partial updates are atomic or explicitly prohibited
-- [ ] Duplicate ID or key conflicts handled predictably
+## A) Structure
+- [ ] Validation in **private helpers** (not inlined in add/update)
+- [ ] Map storage operations clearly separated from validation/orchestration
+- [ ] No hidden state; inputs come via method params
 
-**Findings (before):**
-- Boundary checks not uniform between `create` and `update`.
-- Invariants implied in tests but not documented near code.
-- Duplicate handling inconsistent across methods.
+**Before (notes):** Validation, storage, and flow mixed inside methods.
 
 ---
 
-## 3) Security & Data Handling
-- [ ] Inputs are strictly validated and normalized (e.g., trim, canonicalize phone)
-- [ ] No sensitive data appears in logs or exception messages
-- [ ] Errors do not leak internal class/stack details
+## B) Rules
+- [ ] `firstName`, `lastName`: non-null, length ≤ **10**
+- [ ] `phone`: non-null, exactly **10** digits (`\d{10}`)
+- [ ] `address`: non-null, length ≤ **30**
 
-**Findings (before):**
-- Validation sprinkled in multiple methods; some normalizations missing.
-- Some error strings echo raw inputs (could be constrained).
+**Before (notes):** Rules present but inlined/duplicated.
 
 ---
 
-## 4) Testing Depth & Quality
-- [ ] Boundary tests cover min/max lengths, null/empty, invalid formats
-- [ ] Negative-path tests cover every error branch
-- [ ] Parameterized tests used for input matrices
-- [ ] Property-based tests enforce invariants (e.g., generator for valid/invalid names)
-- [ ] Mutation testing used to assess assertion strength; target score defined
+## C) ID Semantics
+- [ ] **Add**: `contactId` required & **unique**
+- [ ] **Update**: `contactId` must **exist**; reject if missing
 
-**Findings (before):**
-- Tests emphasize happy paths; fewer negative and boundary cases.
-- No property-based or mutation testing present.
+**Before (notes):** Checks exist but reasons not explicit.
 
 ---
 
-## 5) Naming, Docs, Readability
-- [ ] Descriptive method/variable names (no magic numbers)
-- [ ] Public methods have docstrings (preconditions/postconditions)
-- [ ] Consistent formatting; no dead/commented-out code blocks
-- [ ] Validation/error semantics described in README
+## D) Error Signaling
+- [ ] Internal helpers use tiny `Result` + `ErrorCode` (in-file)
+- [ ] Public methods may still return `boolean`, but reason is captured internally
+- [ ] No raw stack traces in normal error paths
 
-**Findings (before):**
-- Minor magic constants in validation; sparse docstrings for public methods.
-- README does not document error semantics.
+**Before (notes):** Boolean-only returns obscure *why* (invalid/not found/conflict).
 
 ---
 
-## 6) Performance & Observability (right-sized)
-- [ ] Logging at service boundaries (info) and failures (warn/error)
-- [ ] Correlation/operation IDs included in logs
-- [ ] Time/cost of hot paths measured if relevant (e.g., batch create/update)
-
-**Findings (before):**
-- Logs present but inconsistent; no correlation IDs.
+## E) Minimal Tests to Add
+- [ ] Boundaries: name 10/11, address 30/31, phone 10/9/11 digits
+- [ ] Negatives: null/empty fields, non-digit phone, duplicate ID on add, unknown ID on update
+- [ ] Positives: valid add, valid update
 
 ---
 
-## 7) Tooling, Build, CI
-- [ ] Lint/format enforced (pre-commit or CI)
-- [ ] Unit + property + mutation tests run in CI
-- [ ] CI publishes HTML artifacts (coverage, mutation report)
-- [ ] Minimal badge(s) in README (status, coverage/mutation if available)
-
-**Findings (before):**
-- Unit tests run in CI; mutation/property-based not configured; no artifacts published.
+## F) Documentation
+- [ ] Javadoc at class top: rule sheet + ID uniqueness/update requirements
+- [ ] One-line comments: where validation is called; what each helper checks
 
 ---
 
-## Rubric Alignment (at-a-glance)
-- Structure/Design → **CO3**
-- Testing/Quality → **CO4**
-- Reasoning/Algorithms (validation as properties, result typing) → **CO2**
-- Security/Docs/Policies (validation rigor, non-leaky errors) → **CO5**
+## Rubric Mapping (For CS-499)
+- **CO3** design (helpers & separation) · **CO2** reasoning (explicit invariants) · **CO4** assessment (planned boundary/negative tests) · **CO5** policies (safe, centralized validation)
